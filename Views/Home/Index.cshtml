@@ -1,0 +1,177 @@
+﻿@model ExpenseWatchUI.Models.FormModel
+@{
+    ViewBag.Title = "Home Page";
+}
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ExpenseWatchDB Archive</title>
+
+    <!-- CSS Includes -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+    <style type="text/css">
+
+        .field-validation-error {
+            color: #ff0000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="col-md-6 col-md-offset-3">
+            <h1>ExpenseWatchDB Archive</h1>
+
+            @using (Html.BeginForm("SubmitForm", "Home", FormMethod.Post, new { id = "form1" }))
+            {
+                <div class="form-group">
+                    @Html.LabelFor(m => m.InvOrExp)
+                    <br>
+                    @Html.RadioButtonFor(model => model.InvOrExp, "Invoice", new { @id = "radioInvoice", @class = "form-check", @onclick = "toggleSections()" })
+                    <label for="radioInvoice">Invoice</label>
+                    <br>
+                    @Html.RadioButtonFor(model => model.InvOrExp, "Expense", new { @id = "radioExpense", @class = "form-check", @onclick = "toggleSections()" })
+                    <label for="radioExpense">Expense</label>
+                    @Html.ValidationMessageFor(model => model.InvOrExp)
+                </div>
+
+                <div class="form-group" id="invoiceSection" style="display:none;">
+                    @Html.LabelFor(m => m.VendorName)
+                    @Html.TextBoxFor(model => model.VendorName, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.VendorName)
+
+                    @Html.LabelFor(m => m.InvoiceNumber)
+                    @Html.TextBoxFor(model => model.InvoiceNumber, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.InvoiceNumber)
+                </div>
+
+                <div class="form-group" id="expenseSection" style="display:none;">
+                    @Html.LabelFor(m => m.EmployeeName)
+                    @Html.TextBoxFor(model => model.EmployeeName, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.EmployeeName)
+                </div>
+
+                <div class="form-group" id="dateSection" style="display:none;">
+                    @Html.LabelFor(m => m.StartDate)
+                    @Html.TextBoxFor(model => model.StartDate, new { @class = "form-control", style = "width:100px" })
+                    @Html.ValidationMessageFor(model => model.StartDate)
+
+                    @Html.LabelFor(m => m.EndDate)
+                    @Html.TextBoxFor(model => model.EndDate, new { @class = "form-control", style = "width:100px" })
+                    @Html.ValidationMessageFor(model => model.EndDate)
+                </div>
+
+                <button type="submit" class="btn btn-success submit">Search</button>
+            }
+
+            <br /><br />
+            <div id="dataTableSection" class="container-fluid" style="display:none;">
+                <h3>Search Results</h3>
+                <table border="1" border-collapse:"collapase" id="table1" style="display:block; height:100px; width:auto; overflow-y: scroll">
+                    <thead>
+                        <!-- Header Row inserted here -->
+                    </thead>
+                    <tbody>
+                        <!-- Rows inserted here -->
+                    </tbody>
+                </table>
+                <br><br><br><br>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS includes -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+    <script src="//ajax.aspnetcdn.com/ajax/jquery.validate/1.11.1/jquery.validate.min.js"></script>
+    <script src="//ajax.aspnetcdn.com/ajax/mvc/4.0/jquery.validate.unobtrusive.min.js"></script>
+
+    <script type="text/javascript">
+
+		$(document).ready(function () {
+			$('#form1').submit(function (e) {
+				e.preventDefault();
+
+				var form = $(this);
+				var formData = form.serialize();
+
+				var tableHeaders = document.getElementById("radioInvoice").checked ?
+					["Invoice","Vendor Name","Start Date"]
+						:
+					["Expense","Employee Name","Start Date"];
+
+				DisplayTable(form, formData, tableHeaders);
+			});
+		});
+
+		function DisplayTable(form, formData,tableHeaders){
+			//Setup Headers for Invoices
+			const headerStyle = "padding:5px;position: sticky; top: 0; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4); background: #afa;"
+			var thead = $('#table1 thead');
+			thead.empty();
+			thead.append('<tr>');
+			tableHeaders.forEach((headerName) => {
+				thead.append('<th style="'+headerStyle+'">'+headerName+'</th>');
+			});
+			thead.append('</tr>');
+
+			//Make Call to DB to Fill/Display the table
+			$.ajax({
+				url: '@Url.Action("SubmitForm", "Home")',
+				type: 'POST',
+				data: formData,
+				success: function (data) {
+					//Wipe the Table Clean before rewriting
+					$('#table1 tbody').empty();
+					// Needs to be setup with a for each to add a row per object returned.
+					data.forEach(transaction => {
+						if ( transaction.InvOrExp == "Invoice" ) {
+							$('#table1 tbody').append(
+								'<tr><td>' +
+								transaction.InvOrExp + '</td><td>' +
+								transaction.VendorName + '</td><td>' +
+								transaction.StartDate + '</td></tr>'
+							);
+						} else {
+							$('#table1 tbody').append(
+								'<tr><td>' +
+								transaction.InvOrExp + '</td><td>' +
+								transaction.EmployeeName + '</td><td>' +
+								transaction.StartDate + '</td></tr>'
+							);
+						}
+					});
+
+					// Show the section
+					$('#dataTableSection').show();
+
+					// Optionally clear the form
+					form[0].reset();
+					toggleSections();
+					},
+				error: function () {
+					alert('An error occurred while querying the database.');
+				}
+			});
+		}
+
+		function toggleSections() {
+            const isInvoice = document.getElementById("radioInvoice").checked;
+            const isExpense = document.getElementById("radioExpense").checked;
+
+            document.getElementById("invoiceSection").style.display = isInvoice ? "block" : "none";
+            document.getElementById("expenseSection").style.display = isExpense ? "block" : "none";
+			document.getElementById("dateSection").style.display = (isInvoice || isExpense) ? "block" : "none";
+        }
+
+        // Run on page load in case of back/forward nav
+        window.onload = toggleSections;
+
+    </script>
+</body>
+</html>
